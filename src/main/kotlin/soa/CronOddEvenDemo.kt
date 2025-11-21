@@ -10,6 +10,7 @@ import org.springframework.integration.annotation.Gateway
 import org.springframework.integration.annotation.MessagingGateway
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.integration.config.EnableIntegration
+import org.springframework.integration.config.EnableMessageHistory
 import org.springframework.integration.dsl.DirectChannelSpec
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
@@ -21,7 +22,6 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
-import org.springframework.integration.config.EnableMessageHistory
 
 private val logger = LoggerFactory.getLogger("soa.CronOddEvenDemo")
 
