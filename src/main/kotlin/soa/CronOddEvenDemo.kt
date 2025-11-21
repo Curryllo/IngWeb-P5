@@ -53,6 +53,9 @@ class IntegrationApplication(
     @Bean
     fun oddChannel(): PublishSubscribeChannelSpec<*> = MessageChannels.publishSubscribe()
 
+    @Bean
+    fun monitoringChannel(): DirectChannelSpec = MessageChannels.direct()
+
     /**
      * Main integration flow that polls the integer source and routes messages.
      * Polls every 100ms and routes based on even/odd logic.
@@ -60,6 +63,7 @@ class IntegrationApplication(
     @Bean
     fun myFlow(): IntegrationFlow =
         integrationFlow("numberChannel") {
+            wireTap("monitoringChannel")
             transform { num: Int ->
                 logger.info("📥 Source generated number: {}", num)
                 num
@@ -136,6 +140,14 @@ class IntegrationApplication(
         logger.info("🚀 Gateway injecting: {}", number)
         sendNumber.sendNumber(number)
     }
+
+    @Bean
+    fun monitoringFlow(): IntegrationFlow =
+        integrationFlow("monitoringChannel") {
+            handle { msg ->
+                logger.info("WIRE TAP de mensaje -> {}", msg.payload)
+            }
+        }
 }
 
 /**
