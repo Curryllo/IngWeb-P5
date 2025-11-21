@@ -10,6 +10,7 @@ import org.springframework.integration.annotation.Gateway
 import org.springframework.integration.annotation.MessagingGateway
 import org.springframework.integration.annotation.ServiceActivator
 import org.springframework.integration.config.EnableIntegration
+import org.springframework.integration.dsl.DirectChannelSpec
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.MessageChannels
 import org.springframework.integration.dsl.Pollers
@@ -35,7 +36,7 @@ private val logger = LoggerFactory.getLogger("soa.CronOddEvenDemo")
 @EnableIntegration
 @EnableScheduling
 class IntegrationApplication(
-    private val sendNumber: SendNumber,
+    private val sendNumber: SomeService,
 ) {
     /**
      * Creates an atomic integer source that generates sequential numbers.
@@ -43,23 +44,22 @@ class IntegrationApplication(
     @Bean
     fun integerSource(): AtomicInteger = AtomicInteger()
 
-    /**
-     * Defines a publish-subscribe channel for even numbers.
-     * Multiple subscribers can receive messages from this channel.
-     */
     @Bean
-    fun evenChannel(): PublishSubscribeChannelSpec<*> = MessageChannels.publishSubscribe()
+    fun evenChannel(): DirectChannelSpec = MessageChannels.direct()
+
+    @Bean
+    fun numberChannel(): DirectChannelSpec = MessageChannels.direct()
+
+    @Bean
+    fun oddChannel(): PublishSubscribeChannelSpec<*> = MessageChannels.publishSubscribe()
 
     /**
      * Main integration flow that polls the integer source and routes messages.
      * Polls every 100ms and routes based on even/odd logic.
      */
     @Bean
-    fun myFlow(integerSource: AtomicInteger): IntegrationFlow =
-        integrationFlow(
-            source = { integerSource.getAndIncrement() },
-            options = { poller(Pollers.fixedRate(100)) },
-        ) {
+    fun myFlow(): IntegrationFlow =
+        integrationFlow("numberChannel") {
             transform { num: Int ->
                 logger.info("📥 Source generated number: {}", num)
                 num
@@ -87,6 +87,18 @@ class IntegrationApplication(
             }
         }
 
+    @Bean
+    fun polling(integerSource: AtomicInteger): IntegrationFlow =
+        integrationFlow(
+            source = { integerSource.getAndIncrement() },
+            options = { poller(Pollers.fixedRate(100)) },
+        ) {
+            route { p: Int ->
+                val channel = "numberChannel"
+                channel
+            }
+        }
+
     /**
      * Integration flow for processing odd numbers.
      * Applies a filter before transformation and logging.
@@ -95,11 +107,6 @@ class IntegrationApplication(
     @Bean
     fun oddFlow(): IntegrationFlow =
         integrationFlow("oddChannel") {
-            filter { p: Int ->
-                val passes = p % 2 == 0
-                logger.info("  🔍 Odd Filter: checking {} → {}", p, if (passes) "PASS" else "REJECT")
-                passes
-            } // , { discardChannel("discardChannel") })
             transform { obj: Int ->
                 logger.info("  ⚙️  Odd Transformer: {} → 'Number {}'", obj, obj)
                 "Number $obj"
@@ -136,7 +143,7 @@ class IntegrationApplication(
  * Uses @ServiceActivator annotation to connect to the integration flow.
  */
 @Component
-class SomeService {
+class ServiceOdd {
     @ServiceActivator(inputChannel = "oddChannel")
     fun handle(p: Any) {
         logger.info("  🔧 Service Activator: Received [{}] (type: {})", p, p.javaClass.simpleName)
@@ -149,8 +156,8 @@ class SomeService {
  * Note: Check which channel this gateway sends messages to.
  */
 @MessagingGateway
-interface SendNumber {
-    @Gateway(requestChannel = "evenChannel")
+interface SomeService {
+    @Gateway(requestChannel = "numberChannel")
     fun sendNumber(number: Int)
 }
 
