@@ -21,6 +21,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
+import org.springframework.integration.config.EnableMessageHistory
 
 private val logger = LoggerFactory.getLogger("soa.CronOddEvenDemo")
 
@@ -35,6 +36,7 @@ private val logger = LoggerFactory.getLogger("soa.CronOddEvenDemo")
 @SpringBootApplication
 @EnableIntegration
 @EnableScheduling
+@EnableMessageHistory
 class IntegrationApplication(
     private val sendNumber: SomeService,
 ) {
@@ -145,6 +147,8 @@ class IntegrationApplication(
     fun monitoringFlow(): IntegrationFlow =
         integrationFlow("monitoringChannel") {
             handle { msg ->
+                val history = msg.headers["history"] as? List<*>
+                logger.info("📜 Message History: {}", history)
                 logger.info("WIRE TAP de mensaje -> {}", msg.payload)
             }
         }
